@@ -1,5 +1,7 @@
 - 🌞 Hi, I’m @K-NANOG
+
 - 🌌 I’m interested in everything that is beautiful!
+
 - 🌱 I’m currently evolving! (in a strategic way)
 
 
