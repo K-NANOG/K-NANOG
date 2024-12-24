@@ -1,4 +1,4 @@
-- 🌞 Hi, I’m @K-NANOG
+- 🌞 Hi!
 
 - 🌌 I’m interested in everything that is beautiful!
 
