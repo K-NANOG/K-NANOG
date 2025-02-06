@@ -2,7 +2,7 @@
 
 - 🌌 I’m interested in everything that is beautiful!
 
-- 🌱 Currently evolving! (in a strategic way)
+- 🌱 Currently evolving... (in a strategic way)
 
 
 <!---
