@@ -1,8 +1,4 @@
-- 🌞 Hi!
-
-- 🌌 I’m interested in everything that is beautiful!
-
-- 🌱 Currently evolving... (in a strategic way)
+Agentic polymath, in love with intuitive and iterative (meta)rationality for posthumanity. Chronic stendhal syndrome + timeline explorer. ✶
 
 
 <!---
