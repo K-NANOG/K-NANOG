@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """Render stats.svg: GitHub activity for one account, drawn as a terminal session.
 
-Needs a token in GH_TOKEN. A personal token sees private repositories and
-contributions; the Actions GITHUB_TOKEN sees only public ones.
-Usage:  GH_TOKEN=... python3 stats.py [login] [out.svg]
+GH_TOKEN reads repositories, commits and languages: a personal token sees the
+private ones, the Actions GITHUB_TOKEN only public ones. CAL_TOKEN (default
+GH_TOKEN) reads the contribution calendar. Give it the GITHUB_TOKEN: it counts
+private contributions the way the public profile graph does, while a
+fine-grained token drops those in repositories it cannot read.
+Usage:  GH_TOKEN=... [CAL_TOKEN=...] python3 stats.py [login] [out.svg]
 Stdlib only, so the workflow needs no install step.
 """
 import collections
@@ -19,11 +22,11 @@ OUT = sys.argv[2] if len(sys.argv) > 2 else "stats.svg"
 COLS = 78  # terminal width in characters, as in the loop_score banners
 
 
-def gql(query, **variables):
+def gql(token, query, **variables):
     req = urllib.request.Request(
         "https://api.github.com/graphql",
         json.dumps({"query": query, "variables": variables}).encode(),
-        {"Authorization": f"bearer {os.environ['GH_TOKEN']}"},
+        {"Authorization": f"bearer {token}"},
     )
     body = json.load(urllib.request.urlopen(req))
     if "errors" in body:
@@ -32,16 +35,24 @@ def gql(query, **variables):
 
 
 def fetch():
+    repo_token = os.environ["GH_TOKEN"]
+    cal_token = os.environ.get("CAL_TOKEN") or repo_token
     user = gql(
+        repo_token,
         """query($login: String!) { user(login: $login) {
           createdAt
           repositories(ownerAffiliations: OWNER, first: 100) { totalCount nodes {
             languages(first: 10, orderBy: {field: SIZE, direction: DESC}) { edges { size node { name } } }
-            defaultBranchRef { target { ... on Commit { history { totalCount } } } } } }
+            defaultBranchRef { target { ... on Commit { history { totalCount } } } } } } } }""",
+        login=LOGIN,
+    )
+    user["contributionsCollection"] = gql(
+        cal_token,
+        """query($login: String!) { user(login: $login) {
           contributionsCollection { contributionCalendar { totalContributions
             weeks { contributionDays { contributionCount date } } } } } }""",
         login=LOGIN,
-    )
+    )["contributionsCollection"]
     # all-time contributions: the API answers one year at a time
     since = dt.datetime.fromisoformat(user["createdAt"].replace("Z", "+00:00"))
     now = dt.datetime.now(dt.timezone.utc)
@@ -50,6 +61,7 @@ def fetch():
         start = max(since, dt.datetime(year, 1, 1, tzinfo=dt.timezone.utc))
         end = min(now, dt.datetime(year, 12, 31, 23, 59, 59, tzinfo=dt.timezone.utc))
         alltime += gql(
+            cal_token,
             """query($login: String!, $from: DateTime!, $to: DateTime!) { user(login: $login) {
               contributionsCollection(from: $from, to: $to) { contributionCalendar { totalContributions } } } }""",
             login=LOGIN, **{"from": start.isoformat(), "to": end.isoformat()},
@@ -128,8 +140,6 @@ def render(s, now):
     css = (
         f"text{{font:{fs}px 'JetBrains Mono','DejaVu Sans Mono',Menlo,Consolas,monospace;"
         f"fill:{fg};white-space:pre}}.d{{fill:{dim}}}"
-        # visible by default; a renderer that animates prints the lines one by one
-        ".l{animation:in .01s steps(1) both}@keyframes in{from{opacity:0}to{opacity:1}}"
         ".c{animation:blink 1.1s steps(1) infinite}@keyframes blink{50%{opacity:0}}"
     )
     body, gi = [], 0
@@ -138,7 +148,6 @@ def render(s, now):
     hi = active[len(active) * 3 // 4] if active else 1
     for i, (kind, text) in enumerate(rows):
         y = pad + (i + 1) * lh - 5
-        delay = f"animation-delay:{i * 0.06:.2f}s"
         if kind == "gridrow":
             # bracketed rows of squares, drawn as shapes so they align in any font
             x0 = pad + 2 * cw
@@ -160,17 +169,16 @@ def render(s, now):
             g.append(f'<text x="{xr:.1f}" y="{y}">]</text>')
             g.append(f'<text x="{xr + 2 * cw:.1f}" y="{y}" class="d">{"MTWTFSS"[(gi + 6) % 7]}</text>')
             gi += 1
-            body.append(f'<g class="l" style="{delay}">{"".join(g)}</g>')
+            body.append(f'<g>{"".join(g)}</g>')
             continue
         if not text:
             continue
-        cls = "l d" if kind in ("grid",) or text.startswith("##") or text.startswith("#") else "l"
         extra = ""
         if kind == "cursor":
             extra = (f'<rect class="c" x="{pad + len(text) * cw:.1f}" y="{y - 11}" '
                      f'width="{cw:.1f}" height="14" fill="{fg}"/>')
         body.append(
-            f'<g class="{cls}" style="{delay}"><text x="{pad}" y="{y}" '
+            f'<g><text x="{pad}" y="{y}" '
             f'textLength="{len(text) * cw:.1f}" lengthAdjust="spacingAndGlyphs">{escape(text)}</text>{extra}</g>'
         )
     return (

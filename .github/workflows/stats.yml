@@ -15,10 +15,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # STATS_TOKEN (a personal token) counts private repositories; without it only public ones show
+      # STATS_TOKEN (a personal token) counts private repositories; without it only public ones show.
+      # The calendar comes from GITHUB_TOKEN, which counts private contributions as the profile graph does.
       - run: python3 stats.py K-NANOG stats.svg
         env:
           GH_TOKEN: ${{ secrets.STATS_TOKEN || secrets.GITHUB_TOKEN }}
+          CAL_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # commit only when a number moved, not when the timestamp alone did
       - run: |
           git diff --quiet -I 'updated' -- stats.svg && exit 0
