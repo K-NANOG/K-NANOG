@@ -1,0 +1,29 @@
+name: stats
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+  push:
+    paths: [stats.py, .github/workflows/stats.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # STATS_TOKEN (a personal token) counts private repositories; without it only public ones show
+      - run: python3 stats.py K-NANOG stats.svg
+        env:
+          GH_TOKEN: ${{ secrets.STATS_TOKEN || secrets.GITHUB_TOKEN }}
+      # commit only when a number moved, not when the timestamp alone did
+      - run: |
+          git diff --quiet -I 'updated' -- stats.svg && exit 0
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add stats.svg
+          git commit -m "stats: refresh"
+          git push
