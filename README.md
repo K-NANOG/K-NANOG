@@ -1,1 +1,1 @@
-<img src="stats.svg?v=1792852451" alt="GitHub activity for K-NANOG" width="100%">
+<img src="stats.svg?v=1792865417" alt="GitHub activity for K-NANOG" width="100%">
